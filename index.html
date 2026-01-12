@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="gl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Idiotizador (DAF)</title>
+  <meta name="theme-color" content="#111111" />
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 16px; line-height: 1.35; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 14px; max-width: 720px; }
+    label { display:block; margin-top: 14px; font-weight: 600; }
+    input[type="range"] { width: 100%; }
+    .row { display:flex; gap:12px; flex-wrap: wrap; }
+    .row > div { flex: 1 1 220px; }
+    button { padding: 12px 14px; border-radius: 10px; border: 1px solid #ccc; background: #111; color: #fff; font-weight: 700; }
+    button.secondary { background: #fff; color:#111; }
+    .warn { margin-top: 10px; color: #8a1f11; font-weight: 700; }
+    .muted { color: #555; }
+    .pill { display:inline-block; padding: 4px 10px; border:1px solid #ddd; border-radius: 999px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>🎧 Idiotizador (DAF)</h2>
+    <p class="muted">
+      Escoitas a túa voz con retardo. <b>Usa auriculares</b> para evitar acoples.
+      (Isto non é “eco”, é feedback retardado.)
+    </p>
+
+    <div class="row">
+      <div>
+        <button id="startBtn">▶️ Iniciar</button>
+      </div>
+      <div>
+        <button id="stopBtn" class="secondary" disabled>⏹ Parar</button>
+      </div>
+      <div>
+        <span class="pill" id="status">Estado: parado</span>
+      </div>
+    </div>
+
+    <label>Retardo: <span id="delayMsLabel">180</span> ms</label>
+    <input id="delayMs" type="range" min="0" max="500" step="5" value="180" />
+
+    <label>Volume (saída): <span id="outGainLabel">0.70</span></label>
+    <input id="outGain" type="range" min="0" max="1" step="0.01" value="0.70" />
+
+    <label>Mestura (wet/dry): <span id="mixLabel">100%</span> retardo</label>
+    <input id="mix" type="range" min="0" max="1" step="0.01" value="1" />
+
+    <label class="muted">Axustes recomendados</label>
+    <ul class="muted">
+      <li>Proba <b>120–220 ms</b> para efecto forte.</li>
+      <li>Se hai “acople”, baixa volume e asegúrate de levar auriculares pechados.</li>
+      <li>Se notas moita latencia base, é normal: o hardware engade 20–80 ms antes do retardo.</li>
+    </ul>
+
+    <div class="warn">⚠️ Comeza con volume baixo. Co micro aberto, o acople pode ser moi molesto.</div>
+  </div>
+
+<script>
+  let audioCtx, stream, source;
+  let delayNode, wetGain, dryGain, outGainNode;
+  let running = false;
+
+  const $ = (id) => document.getElementById(id);
+
+  function setStatus(txt) { $("status").textContent = "Estado: " + txt; }
+
+  async function start() {
+    if (running) return;
+
+    // Requírese contexto seguro (HTTPS) e xesto do usuario.
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({
+      latencyHint: "interactive"
+    });
+
+    // iOS/Safari: hai que "resume" tras click.
+    await audioCtx.resume();
+
+    // Pedimos micro. Echo/NS desactivado para que non “mate” o efecto DAF.
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
+    });
+
+    source = audioCtx.createMediaStreamSource(stream);
+
+    delayNode = audioCtx.createDelay(2.0); // ata 2s (abondo)
+    wetGain = audioCtx.createGain();
+    dryGain = audioCtx.createGain();
+    outGainNode = audioCtx.createGain();
+
+    // Cadea:
+    // mic -> dry -> out
+    // mic -> delay -> wet -> out
+    source.connect(dryGain);
+    source.connect(delayNode);
+    delayNode.connect(wetGain);
+
+    // Mestura e volume final
+    dryGain.connect(outGainNode);
+    wetGain.connect(outGainNode);
+    outGainNode.connect(audioCtx.destination);
+
+    // Valores iniciais
+    applyUI();
+
+    running = true;
+    $("startBtn").disabled = true;
+    $("stopBtn").disabled = false;
+    setStatus("activo");
+  }
+
+  function stop() {
+    if (!running) return;
+
+    try {
+      if (source) source.disconnect();
+      if (delayNode) delayNode.disconnect();
+      if (wetGain) wetGain.disconnect();
+      if (dryGain) dryGain.disconnect();
+      if (outGainNode) outGainNode.disconnect();
+    } catch(e) {}
+
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+
+    if (audioCtx) {
+      audioCtx.close();
+      audioCtx = null;
+    }
+
+    running = false;
+    $("startBtn").disabled = false;
+    $("stopBtn").disabled = true;
+    setStatus("parado");
+  }
+
+  function applyUI() {
+    const delayMs = parseFloat($("delayMs").value);
+    const outGain = parseFloat($("outGain").value);
+    const mix = parseFloat($("mix").value); // 0=dry, 1=wet
+
+    $("delayMsLabel").textContent = delayMs.toFixed(0);
+    $("outGainLabel").textContent = outGain.toFixed(2);
+    $("mixLabel").textContent = Math.round(mix * 100) + "%";
+
+    if (delayNode) delayNode.delayTime.value = delayMs / 1000.0;
+    if (outGainNode) outGainNode.gain.value = outGain;
+
+    // Mestura
+    if (wetGain) wetGain.gain.value = mix;
+    if (dryGain) dryGain.gain.value = 1.0 - mix;
+  }
+
+  $("startBtn").addEventListener("click", async () => {
+    try { await start(); }
+    catch (e) {
+      console.error(e);
+      alert("Erro iniciando audio. Asegúrate de estar en HTTPS e dar permiso ao micro.");
+      stop();
+    }
+  });
+
+  $("stopBtn").addEventListener("click", stop);
+
+  ["delayMs", "outGain", "mix"].forEach(id => {
+    $(id).addEventListener("input", applyUI);
+  });
+
+  // PWA
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js").catch(()=>{});
+  }
+</script>
+</body>
+</html>
