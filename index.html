@@ -8,16 +8,19 @@
   <link rel="manifest" href="manifest.json" />
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 16px; line-height: 1.35; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 14px; max-width: 720px; }
-    label { display:block; margin-top: 14px; font-weight: 600; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 14px; max-width: 760px; }
+    label { display:block; margin-top: 14px; font-weight: 700; }
     input[type="range"] { width: 100%; }
-    .row { display:flex; gap:12px; flex-wrap: wrap; }
+    .row { display:flex; gap:12px; flex-wrap: wrap; align-items:center; }
     .row > div { flex: 1 1 220px; }
-    button { padding: 12px 14px; border-radius: 10px; border: 1px solid #ccc; background: #111; color: #fff; font-weight: 700; }
+    button { padding: 12px 14px; border-radius: 10px; border: 1px solid #ccc; background: #111; color: #fff; font-weight: 800; cursor: pointer; }
     button.secondary { background: #fff; color:#111; }
-    .warn { margin-top: 10px; color: #8a1f11; font-weight: 700; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .warn { margin-top: 10px; color: #8a1f11; font-weight: 800; }
     .muted { color: #555; }
     .pill { display:inline-block; padding: 4px 10px; border:1px solid #ddd; border-radius: 999px; }
+    #errBox { margin-top: 12px; padding: 10px; border: 1px solid #f36; border-radius: 10px; white-space: pre-wrap; }
+    code { background:#f6f6f6; padding: 2px 6px; border-radius: 6px; }
   </style>
 </head>
 <body>
@@ -25,19 +28,14 @@
     <h2>🎧 Idiotizador (DAF)</h2>
     <p class="muted">
       Escoitas a túa voz con retardo. <b>Usa auriculares</b> para evitar acoples.
-      (Isto non é “eco”, é feedback retardado.)
+      En iPhone, se algo falla, mira a caixa de erro abaixo.
     </p>
 
     <div class="row">
-      <div>
-        <button id="startBtn">▶️ Iniciar</button>
-      </div>
-      <div>
-        <button id="stopBtn" class="secondary" disabled>⏹ Parar</button>
-      </div>
-      <div>
-        <span class="pill" id="status">Estado: parado</span>
-      </div>
+      <div><button id="unlockBtn" class="secondary">🔓 Desbloquear audio (iPhone)</button></div>
+      <div><button id="startBtn">▶️ Iniciar</button></div>
+      <div><button id="stopBtn" class="secondary" disabled>⏹ Parar</button></div>
+      <div><span class="pill" id="status">Estado: parado</span></div>
     </div>
 
     <label>Retardo: <span id="delayMsLabel">180</span> ms</label>
@@ -49,48 +47,104 @@
     <label>Mestura (wet/dry): <span id="mixLabel">100%</span> retardo</label>
     <input id="mix" type="range" min="0" max="1" step="0.01" value="1" />
 
-    <label class="muted">Axustes recomendados</label>
+    <label class="muted">Proba rápida</label>
     <ul class="muted">
-      <li>Proba <b>120–220 ms</b> para efecto forte.</li>
-      <li>Se hai “acople”, baixa volume e asegúrate de levar auriculares pechados.</li>
-      <li>Se notas moita latencia base, é normal: o hardware engade 20–80 ms antes do retardo.</li>
+      <li>Se non escoitas nada, pon <b>Mix = 0%</b> (dry) para comprobar que o micro e a saída funcionan.</li>
+      <li>Retardo efectivo = (latencia do sistema) + (retardo que poñas). Con Bluetooth pode ser enorme.</li>
+      <li>Se acopla: baixa volume e usa auriculares pechados.</li>
     </ul>
 
-    <div class="warn">⚠️ Comeza con volume baixo. Co micro aberto, o acople pode ser moi molesto.</div>
+    <div class="warn">⚠️ Comeza con volume baixo para evitar acoples.</div>
+    <div id="errBox" style="display:none;"></div>
   </div>
 
 <script>
-  let audioCtx, stream, source;
-  let delayNode, wetGain, dryGain, outGainNode;
+  let audioCtx = null;
+  let stream = null;
+  let source = null;
+
+  let delayNode = null;
+  let wetGain = null;
+  let dryGain = null;
+  let outGainNode = null;
+
   let running = false;
 
   const $ = (id) => document.getElementById(id);
 
   function setStatus(txt) { $("status").textContent = "Estado: " + txt; }
 
+  function showErr(msg) {
+    const box = $("errBox");
+    box.style.display = "block";
+    box.textContent = msg;
+  }
+  function clearErr() {
+    const box = $("errBox");
+    box.style.display = "none";
+    box.textContent = "";
+  }
+
+  function applyUI() {
+    const delayMs = parseFloat($("delayMs").value);
+    const outGain = parseFloat($("outGain").value);
+    const mix = parseFloat($("mix").value);
+
+    $("delayMsLabel").textContent = delayMs.toFixed(0);
+    $("outGainLabel").textContent = outGain.toFixed(2);
+    $("mixLabel").textContent = Math.round(mix * 100) + "%";
+
+    if (delayNode) delayNode.delayTime.value = delayMs / 1000.0;
+    if (outGainNode) outGainNode.gain.value = outGain;
+
+    if (wetGain) wetGain.gain.value = mix;
+    if (dryGain) dryGain.gain.value = 1.0 - mix;
+  }
+
+  async function ensureAudioContext() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)({
+        latencyHint: "interactive"
+      });
+    }
+    if (audioCtx.state !== "running") {
+      await audioCtx.resume();
+    }
+  }
+
+  async function getMicStream() {
+    // Intento 1: constraints “ideal” (non obrigatorios) para non romper en iOS
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: { ideal: false },
+          noiseSuppression: { ideal: false },
+          autoGainControl: { ideal: false }
+        }
+      });
+    } catch (e1) {
+      // Intento 2: audio simple (iPhone ás veces só acepta isto)
+      return await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+  }
+
   async function start() {
     if (running) return;
+    clearErr();
 
-    // Requírese contexto seguro (HTTPS) e xesto do usuario.
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)({
-      latencyHint: "interactive"
-    });
+    // Precisas HTTPS + permiso de micro
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Este navegador non soporta getUserMedia (micro). Proba Safari/Chrome moderno.");
+    }
 
-    // iOS/Safari: hai que "resume" tras click.
-    await audioCtx.resume();
+    await ensureAudioContext();
 
-    // Pedimos micro. Echo/NS desactivado para que non “mate” o efecto DAF.
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false
-      }
-    });
-
+    // Pedimos micro
+    stream = await getMicStream();
     source = audioCtx.createMediaStreamSource(stream);
 
-    delayNode = audioCtx.createDelay(2.0); // ata 2s (abondo)
+    // Nós de audio
+    delayNode = audioCtx.createDelay(2.0);
     wetGain = audioCtx.createGain();
     dryGain = audioCtx.createGain();
     outGainNode = audioCtx.createGain();
@@ -102,12 +156,10 @@
     source.connect(delayNode);
     delayNode.connect(wetGain);
 
-    // Mestura e volume final
     dryGain.connect(outGainNode);
     wetGain.connect(outGainNode);
     outGainNode.connect(audioCtx.destination);
 
-    // Valores iniciais
     applyUI();
 
     running = true;
@@ -117,23 +169,28 @@
   }
 
   function stop() {
-    if (!running) return;
+    if (!running && !audioCtx && !stream) return;
 
-    try {
-      if (source) source.disconnect();
-      if (delayNode) delayNode.disconnect();
-      if (wetGain) wetGain.disconnect();
-      if (dryGain) dryGain.disconnect();
-      if (outGainNode) outGainNode.disconnect();
-    } catch(e) {}
+    try { if (source) source.disconnect(); } catch {}
+    try { if (delayNode) delayNode.disconnect(); } catch {}
+    try { if (wetGain) wetGain.disconnect(); } catch {}
+    try { if (dryGain) dryGain.disconnect(); } catch {}
+    try { if (outGainNode) outGainNode.disconnect(); } catch {}
+
+    source = null;
+    delayNode = null;
+    wetGain = null;
+    dryGain = null;
+    outGainNode = null;
 
     if (stream) {
-      stream.getTracks().forEach(t => t.stop());
+      try { stream.getTracks().forEach(t => t.stop()); } catch {}
       stream = null;
     }
 
     if (audioCtx) {
-      audioCtx.close();
+      // iOS ás veces prefire non pechar; pero pechamos para liberar micro.
+      try { audioCtx.close(); } catch {}
       audioCtx = null;
     }
 
@@ -143,39 +200,36 @@
     setStatus("parado");
   }
 
-  function applyUI() {
-    const delayMs = parseFloat($("delayMs").value);
-    const outGain = parseFloat($("outGain").value);
-    const mix = parseFloat($("mix").value); // 0=dry, 1=wet
-
-    $("delayMsLabel").textContent = delayMs.toFixed(0);
-    $("outGainLabel").textContent = outGain.toFixed(2);
-    $("mixLabel").textContent = Math.round(mix * 100) + "%";
-
-    if (delayNode) delayNode.delayTime.value = delayMs / 1000.0;
-    if (outGainNode) outGainNode.gain.value = outGain;
-
-    // Mestura
-    if (wetGain) wetGain.gain.value = mix;
-    if (dryGain) dryGain.gain.value = 1.0 - mix;
-  }
+  $("unlockBtn").addEventListener("click", async () => {
+    try {
+      clearErr();
+      await ensureAudioContext();
+      setStatus("audio listo");
+    } catch (e) {
+      showErr("Non puiden desbloquear audio:\n" + (e?.name || "") + " - " + (e?.message || e));
+    }
+  });
 
   $("startBtn").addEventListener("click", async () => {
-    try { await start(); }
-    catch (e) {
+    try {
+      await start();
+    } catch (e) {
       console.error(e);
-      alert("Erro iniciando audio. Asegúrate de estar en HTTPS e dar permiso ao micro.");
+      showErr("Erro iniciando audio:\n" + (e?.name || "") + " - " + (e?.message || e));
       stop();
     }
   });
 
-  $("stopBtn").addEventListener("click", stop);
+  $("stopBtn").addEventListener("click", () => {
+    clearErr();
+    stop();
+  });
 
   ["delayMs", "outGain", "mix"].forEach(id => {
     $(id).addEventListener("input", applyUI);
   });
 
-  // PWA
+  // Rexistro de service worker (PWA)
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(()=>{});
   }
