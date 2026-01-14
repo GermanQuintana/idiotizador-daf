@@ -3,58 +3,61 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Idiotizador (DAF)</title>
+  <title>Idiotizador PRO (DAF)</title>
   <meta name="theme-color" content="#111111" />
-  <link rel="manifest" href="manifest.json" />
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 16px; line-height: 1.35; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 14px; max-width: 760px; }
-    label { display:block; margin-top: 14px; font-weight: 700; }
-    input[type="range"] { width: 100%; }
-    .row { display:flex; gap:12px; flex-wrap: wrap; align-items:center; }
-    .row > div { flex: 1 1 220px; }
-    button { padding: 12px 14px; border-radius: 10px; border: 1px solid #ccc; background: #111; color: #fff; font-weight: 800; cursor: pointer; }
-    button.secondary { background: #fff; color:#111; }
-    button:disabled { opacity: 0.55; cursor: not-allowed; }
-    .warn { margin-top: 10px; color: #8a1f11; font-weight: 800; }
-    .muted { color: #555; }
-    .pill { display:inline-block; padding: 4px 10px; border:1px solid #ddd; border-radius: 999px; }
-    #errBox { margin-top: 12px; padding: 10px; border: 1px solid #f36; border-radius: 10px; white-space: pre-wrap; }
-    code { background:#f6f6f6; padding: 2px 6px; border-radius: 6px; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 16px; line-height: 1.35; background: #f4f4f4; color: #111; }
+    .card { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 20px; max-width: 760px; margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    h2 { margin-top: 0; }
+    label { display:block; margin-top: 18px; font-weight: 700; font-size: 0.95rem; }
+    input[type="range"] { width: 100%; margin-top: 8px; cursor: pointer; }
+    
+    .row { display:flex; gap:12px; flex-wrap: wrap; align-items:center; margin-bottom: 20px; }
+    .row > div { flex: 1 1 180px; }
+    
+    button { padding: 12px 14px; border-radius: 10px; border: none; background: #111; color: #fff; font-weight: 800; cursor: pointer; width: 100%; transition: opacity 0.2s; }
+    button.secondary { background: #e0e0e0; color:#111; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button:active { transform: scale(0.98); }
+    
+    .warn { margin-top: 15px; color: #d32f2f; font-weight: 700; background: #ffebee; padding: 10px; border-radius: 8px; font-size: 0.9rem; }
+    .muted { color: #666; font-size: 0.9rem; }
+    .pill { display:inline-block; padding: 4px 10px; background:#eee; border-radius: 999px; font-size: 0.85rem; font-weight: 600; }
+    #errBox { margin-top: 12px; padding: 10px; border: 1px solid #f36; background: #fff0f3; border-radius: 10px; white-space: pre-wrap; color: #d00; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h2>🎧 Idiotizador (DAF)</h2>
+    <h2>🎧 Idiotizador PRO</h2>
     <p class="muted">
-      Escoitas a túa voz con retardo. <b>Usa auriculares</b> para evitar acoples.
-      En iPhone, se algo falla, mira a caixa de erro abaixo.
+      Fala e escoita a túa voz cun retardo extremo. <br>
+      <b>Usa auriculares</b> obrigatoriamente para que funcione ben.
     </p>
 
     <div class="row">
-      <div><button id="unlockBtn" class="secondary">🔓 Desbloquear audio (iPhone)</button></div>
-      <div><button id="startBtn">▶️ Iniciar</button></div>
-      <div><button id="stopBtn" class="secondary" disabled>⏹ Parar</button></div>
-      <div><span class="pill" id="status">Estado: parado</span></div>
+      <div><button id="startBtn">▶️ INICIAR</button></div>
+      <div><button id="stopBtn" class="secondary" disabled>⏹ PARAR</button></div>
+      <div style="text-align:center;"><span class="pill" id="status">Estado: parado</span></div>
+    </div>
+    <div class="row" style="margin-top: -10px;">
+       <div><button id="unlockBtn" class="secondary" style="font-size:0.8rem; padding: 8px;">🔓 Desbloquear (iPhone/Safari)</button></div>
     </div>
 
-    <label>Retardo: <span id="delayMsLabel">180</span> ms</label>
-    <input id="delayMs" type="range" min="0" max="500" step="5" value="180" />
+    <label>⏱️ Retardo: <span id="delayMsLabel">200</span> ms</label>
+    <input id="delayMs" type="range" min="0" max="2000" step="10" value="200" />
 
-    <label>Volume (saída): <span id="outGainLabel">0.70</span></label>
-    <input id="outGain" type="range" min="0" max="1" step="0.01" value="0.70" />
+    <label>🔄 Rebotes (Feedback): <span id="feedbackLabel">40%</span></label>
+    <input id="feedback" type="range" min="0" max="0.9" step="0.05" value="0.4" />
 
-    <label>Mestura (wet/dry): <span id="mixLabel">100%</span> retardo</label>
-    <input id="mix" type="range" min="0" max="1" step="0.01" value="1" />
+    <label>🔊 Volume Saída: <span id="outGainLabel">0.80</span></label>
+    <input id="outGain" type="range" min="0" max="1.5" step="0.05" value="0.80" />
 
-    <label class="muted">Proba rápida</label>
-    <ul class="muted">
-      <li>Se non escoitas nada, pon <b>Mix = 0%</b> (dry) para comprobar que o micro e a saída funcionan.</li>
-      <li>Retardo efectivo = (latencia do sistema) + (retardo que poñas). Con Bluetooth pode ser enorme.</li>
-      <li>Se acopla: baixa volume e usa auriculares pechados.</li>
-    </ul>
+    <label>🎚️ Mestura (Wet/Dry): <span id="mixLabel">100%</span> Voz retardada</label>
+    <input id="mix" type="range" min="0" max="1" step="0.05" value="1" />
 
-    <div class="warn">⚠️ Comeza con volume baixo para evitar acoples.</div>
+    <div class="warn">
+        ⚠️ <b>Consello:</b> Sube o "Retardo" a 600-800ms e os "Rebotes" ao 60% para máxima confusión.
+    </div>
     <div id="errBox" style="display:none;"></div>
   </div>
 
@@ -63,7 +66,9 @@
   let stream = null;
   let source = null;
 
+  // Nodos de audio
   let delayNode = null;
+  let feedbackGainNode = null; // Nodo nuevo para el feedback
   let wetGain = null;
   let dryGain = null;
   let outGainNode = null;
@@ -72,7 +77,7 @@
 
   const $ = (id) => document.getElementById(id);
 
-  function setStatus(txt) { $("status").textContent = "Estado: " + txt; }
+  function setStatus(txt) { $("status").textContent = txt; }
 
   function showErr(msg) {
     const box = $("errBox");
@@ -80,31 +85,39 @@
     box.textContent = msg;
   }
   function clearErr() {
-    const box = $("errBox");
-    box.style.display = "none";
-    box.textContent = "";
+    $("errBox").style.display = "none";
+    $("errBox").textContent = "";
   }
 
   function applyUI() {
+    if (!audioCtx) return;
+
     const delayMs = parseFloat($("delayMs").value);
+    const feedbackVal = parseFloat($("feedback").value);
     const outGain = parseFloat($("outGain").value);
     const mix = parseFloat($("mix").value);
 
+    // Actualizar etiquetas visuales
     $("delayMsLabel").textContent = delayMs.toFixed(0);
+    $("feedbackLabel").textContent = Math.round(feedbackVal * 100) + "%";
     $("outGainLabel").textContent = outGain.toFixed(2);
     $("mixLabel").textContent = Math.round(mix * 100) + "%";
 
-    if (delayNode) delayNode.delayTime.value = delayMs / 1000.0;
-    if (outGainNode) outGainNode.gain.value = outGain;
+    const currentTime = audioCtx.currentTime;
 
-    if (wetGain) wetGain.gain.value = mix;
-    if (dryGain) dryGain.gain.value = 1.0 - mix;
+    // Aplicar valores al audio
+    if (delayNode) delayNode.delayTime.setTargetAtTime(delayMs / 1000.0, currentTime, 0.05);
+    if (feedbackGainNode) feedbackGainNode.gain.setTargetAtTime(feedbackVal, currentTime, 0.05);
+    if (outGainNode) outGainNode.gain.setTargetAtTime(outGain, currentTime, 0.05);
+    
+    if (wetGain) wetGain.gain.setTargetAtTime(mix, currentTime, 0.05);
+    if (dryGain) dryGain.gain.setTargetAtTime(1.0 - mix, currentTime, 0.05);
   }
 
   async function ensureAudioContext() {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)({
-        latencyHint: "interactive"
+        latencyHint: "interactive" // Prioriza baja latencia
       });
     }
     if (audioCtx.state !== "running") {
@@ -112,127 +125,107 @@
     }
   }
 
-  async function getMicStream() {
-    // Intento 1: constraints “ideal” (non obrigatorios) para non romper en iOS
-    try {
-      return await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: { ideal: false },
-          noiseSuppression: { ideal: false },
-          autoGainControl: { ideal: false }
-        }
-      });
-    } catch (e1) {
-      // Intento 2: audio simple (iPhone ás veces só acepta isto)
-      return await navigator.mediaDevices.getUserMedia({ audio: true });
-    }
-  }
-
   async function start() {
     if (running) return;
     clearErr();
 
-    // Precisas HTTPS + permiso de micro
     if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error("Este navegador non soporta getUserMedia (micro). Proba Safari/Chrome moderno.");
+      throw new Error("O navegador non soporta acceso ao micrófono.");
     }
 
     await ensureAudioContext();
 
-    // Pedimos micro
-    stream = await getMicStream();
+    try {
+        // Pedir micrófono
+        stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: false, // Importante: OFF para que no filtre el efecto
+                noiseSuppression: false,
+                autoGainControl: false,
+                latency: 0
+            }
+        });
+    } catch (e) {
+        // Fallback para dispositivos restrictivos
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+
     source = audioCtx.createMediaStreamSource(stream);
 
-    // Nós de audio
-    delayNode = audioCtx.createDelay(2.0);
+    // Crear nodos
+    // Max delay subido a 5.0 segundos por seguridad (aunque usemos 2s en UI)
+    delayNode = audioCtx.createDelay(5.0); 
+    feedbackGainNode = audioCtx.createGain();
     wetGain = audioCtx.createGain();
     dryGain = audioCtx.createGain();
     outGainNode = audioCtx.createGain();
+    
+    // Compresor para evitar picos muy fuertes con el feedback
+    const compressor = audioCtx.createDynamicsCompressor();
+    compressor.threshold.value = -20;
+    compressor.knee.value = 40;
+    compressor.ratio.value = 12;
 
-    // Cadea:
-    // mic -> dry -> out
-    // mic -> delay -> wet -> out
+    // CONEXIONES (Ruteo de cables):
+    
+    // 1. Ruta DRY (voz directa)
     source.connect(dryGain);
-    source.connect(delayNode);
-    delayNode.connect(wetGain);
-
     dryGain.connect(outGainNode);
-    wetGain.connect(outGainNode);
+
+    // 2. Ruta WET (efecto delay + feedback)
+    source.connect(delayNode);           // Mic -> Delay
+    delayNode.connect(wetGain);          // Delay -> Wet Mixer
+    
+    // Bucle de Feedback: Delay -> FeedbackGain -> Delay
+    delayNode.connect(feedbackGainNode);
+    feedbackGainNode.connect(delayNode);
+
+    // Salida final
+    wetGain.connect(compressor);         // Pasamos lo mojado por compresor
+    compressor.connect(outGainNode);     // Compresor -> Salida general
     outGainNode.connect(audioCtx.destination);
 
-    applyUI();
+    applyUI(); // Aplicar valores iniciales de los sliders
 
     running = true;
     $("startBtn").disabled = true;
     $("stopBtn").disabled = false;
-    setStatus("activo");
+    setStatus("ACTIVO 🔴");
   }
 
   function stop() {
-    if (!running && !audioCtx && !stream) return;
-
-    try { if (source) source.disconnect(); } catch {}
-    try { if (delayNode) delayNode.disconnect(); } catch {}
-    try { if (wetGain) wetGain.disconnect(); } catch {}
-    try { if (dryGain) dryGain.disconnect(); } catch {}
-    try { if (outGainNode) outGainNode.disconnect(); } catch {}
-
-    source = null;
-    delayNode = null;
-    wetGain = null;
-    dryGain = null;
-    outGainNode = null;
-
+    if (!running) return;
+    
+    // Desconectar todo suavemente
+    if (source) source.disconnect();
+    if (delayNode) delayNode.disconnect();
+    if (feedbackGainNode) feedbackGainNode.disconnect();
+    
     if (stream) {
-      try { stream.getTracks().forEach(t => t.stop()); } catch {}
+      stream.getTracks().forEach(t => t.stop());
       stream = null;
     }
-
-    if (audioCtx) {
-      // iOS ás veces prefire non pechar; pero pechamos para liberar micro.
-      try { audioCtx.close(); } catch {}
-      audioCtx = null;
-    }
-
+    
     running = false;
     $("startBtn").disabled = false;
     $("stopBtn").disabled = true;
-    setStatus("parado");
+    setStatus("PARADO");
   }
 
+  // Event Listeners
   $("unlockBtn").addEventListener("click", async () => {
-    try {
-      clearErr();
-      await ensureAudioContext();
-      setStatus("audio listo");
-    } catch (e) {
-      showErr("Non puiden desbloquear audio:\n" + (e?.name || "") + " - " + (e?.message || e));
-    }
+    try { await ensureAudioContext(); setStatus("Audio Desbloqueado"); } catch(e) {}
   });
 
   $("startBtn").addEventListener("click", async () => {
-    try {
-      await start();
-    } catch (e) {
-      console.error(e);
-      showErr("Erro iniciando audio:\n" + (e?.name || "") + " - " + (e?.message || e));
-      stop();
-    }
+    try { await start(); } catch (e) { showErr("Erro: " + e.message); stop(); }
   });
 
-  $("stopBtn").addEventListener("click", () => {
-    clearErr();
-    stop();
-  });
+  $("stopBtn").addEventListener("click", stop);
 
-  ["delayMs", "outGain", "mix"].forEach(id => {
+  ["delayMs", "feedback", "outGain", "mix"].forEach(id => {
     $(id).addEventListener("input", applyUI);
   });
-
-  // Rexistro de service worker (PWA)
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js").catch(()=>{});
-  }
 </script>
 </body>
 </html>
